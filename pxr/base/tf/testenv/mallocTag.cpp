@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <mutex>
 #include <thread>
 #include <type_traits>
@@ -873,6 +874,7 @@ TestCancelDoesNotOrphanEarlierAlloc()
 
         // Steps 2 and 3.  Nothing may allocate between them, or the free event
         // could fall out of the look-back window.
+        const uintptr_t firstAddr = reinterpret_cast<uintptr_t>(first);
         free(first);
         void *second = nullptr;
         {
@@ -881,7 +883,7 @@ TestCancelDoesNotOrphanEarlierAlloc()
         }
         TF_AXIOM(second);
 
-        if (second != first) {
+        if (reinterpret_cast<uintptr_t>(second) != firstAddr) {
             // The allocator did not hand the address back, so there is no
             // earlier allocation of this address to orphan.
             free(second);
@@ -900,7 +902,8 @@ TestCancelDoesNotOrphanEarlierAlloc()
             fprintf(stderr, "orphaned allocation after cancellation: "
                     "phantomOld has %" PRId64 " bytes, phantomNew has %"
                     PRId64 " bytes, expected 0 for both (attempt %d, "
-                    "address %p)\n", oldBytes, newBytes, attempt, first);
+                    "address 0x%" PRIxPTR ")\n",
+                    oldBytes, newBytes, attempt, firstAddr);
         }
         TF_AXIOM(oldBytes <= 0);
         TF_AXIOM(newBytes <= 0);
